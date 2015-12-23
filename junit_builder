@@ -50,7 +50,7 @@ class TestReport:
             path = self.path
 
         fd = open(path, 'w')
-        TestSuite.to_file(fd, self.test_suites.values())
+        TestSuite.to_file(fd, self.test_suites.values(), encoding='utf-8')
 
     def test_suite(self, name):
         if name in self.test_suites:
