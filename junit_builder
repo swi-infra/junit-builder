@@ -1,0 +1,160 @@
+#!/usr/bin/env python2
+# -*- coding: utf-8 -*-
+
+from lxml import etree
+from optparse import *
+import os.path
+import junit_xml
+
+parser = OptionParser()
+parser.add_option("-f", "--file", dest="file",
+                  help="read results FILE", metavar="FILE")
+parser.add_option("-o", "--output", dest="output",
+                  help="write results to FILE (default to input file)", metavar="FILE")
+parser.add_option("-s", "--testsuite", dest="testsuite",
+                  metavar="TS")
+parser.add_option("-t", "--testcase", dest="testcase",
+                  metavar="TC")
+parser.add_option("-r", "--result", dest="result",
+                  metavar="RESULT")
+parser.add_option("--stdout", dest="stdout",
+                  metavar="LOG_STDOUT")
+parser.add_option("--stderr", dest="stderr",
+                  metavar="LOG_STDERR")
+parser.add_option("--failure-msg", dest="failure_msg",
+                  metavar="FAILURE_MSG")
+parser.add_option("--duration", dest="duration",
+                  metavar="DURATION")
+
+(options, args) = parser.parse_args()
+
+class TestReport:
+    def __init__(self, path=None):
+        self.path = path
+        self.test_suites = {}
+
+        if path and not os.path.isfile(path):
+            print "Creating file %s" % (path)
+        else:
+            print "Updating file %s" % (path)
+            self._parse()
+
+    def _parse(self):
+        input_report = etree.parse(self.path)
+        for elmt in input_report.getroot():
+            ts = TestSuite.parse(elmt)
+            self.test_suites[ts.name] = ts
+
+    def save(self, path=None):
+        if not path:
+            path = self.path
+
+        fd = open(path, 'w')
+        TestSuite.to_file(fd, self.test_suites.values())
+
+    def test_suite(self, name):
+        if name in self.test_suites:
+            return self.test_suites[name]
+
+        ts = TestSuite(name)
+        self.test_suites[name] = ts
+        return ts
+
+class TestSuite(junit_xml.TestSuite):
+
+    @staticmethod
+    def parse(elmt):
+        name = elmt.get("name")
+        ts = TestSuite(name)
+
+        # Attributes
+        if elmt.get('time'):
+            ts.time = elmt.get('time')
+        if elmt.get('timestamp'):
+            ts.timestamp = elmt.get('timestamp')
+        if elmt.get('hostname'):
+            ts.hostname = elmt.get('hostname')
+        if elmt.get('id'):
+            ts.id = elmt.get('id')
+        if elmt.get('package'):
+            ts.package = elmt.get('package')
+
+        for child in elmt:
+            if child.tag == "properties":
+                ts.properties = {}
+                for prop in child:
+                    ts.properties[prop.get('name')] = prop.get('value')
+            if child.tag == "testcase":
+                tc = TestCase.parse(child)
+                ts.test_cases.append(tc)
+
+        return ts
+
+def num(s):
+    try:
+        return int(s)
+    except ValueError:
+        return float(s)
+
+class TestCase(junit_xml.TestCase):
+
+    @staticmethod
+    def parse(elmt):
+        name = elmt.get("name")
+        tc = TestCase(name)
+
+        # Attributes
+        if elmt.get('classname'):
+            tc.classname = elmt.get('classname')
+        if elmt.get('time'):
+            tc.elapsed_sec = num(elmt.get('time'))
+
+        for child in elmt:
+            if child.tag == "skipped":
+                tc.skipped_output = child.text
+            elif child.tag == "system-out":
+                tc.stdout = child.text
+            elif child.tag == "system-err":
+                tc.stderr = child.text
+            elif child.tag == "failure":
+                tc.failure_output = child.text
+            else:
+                raise Exception("Unknown tag '%s'" % child.tag)
+        return tc
+
+report = TestReport(options.file)
+
+# Handle options
+if options.testsuite:
+    ts = report.test_suite(options.testsuite)
+
+    if options.testcase:
+        tc = TestCase(options.testcase)
+
+        if options.result:
+            result = options.result.lower()
+
+            if result == "failed":
+                if options.failure_msg:
+                    tc.failure_output = option.failure_msg
+                else:
+                    tc.failure_output = "failed"
+
+        if options.stdout:
+            with open(options.stdout, 'r') as f:
+                tc.stdout = f.read() 
+
+        if options.stderr:
+            with open(options.stderr, 'r') as f:
+                tc.stderr = f.read() 
+        
+        if options.duration:
+            tc.elapsed_sec = num(options.duration)
+            
+        ts.test_cases.append(tc)
+
+# Save
+output = options.output
+if not output:
+    output = options.file
+report.save(output)
