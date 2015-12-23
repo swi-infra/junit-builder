@@ -5,6 +5,7 @@ from lxml import etree
 from optparse import *
 import os.path
 import junit_xml
+import io
 
 parser = OptionParser()
 parser.add_option("-f", "--file", dest="file",
@@ -49,7 +50,7 @@ class TestReport:
         if not path:
             path = self.path
 
-        fd = open(path, 'w')
+        fd = io.open(path, 'w', encoding='utf8')
         TestSuite.to_file(fd, self.test_suites.values(), encoding='utf-8')
 
     def test_suite(self, name):
