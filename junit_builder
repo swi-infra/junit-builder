@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 from lxml import etree
@@ -26,6 +26,8 @@ parser.add_option("--failure-msg", dest="failure_msg",
                   metavar="FAILURE_MSG")
 parser.add_option("--duration", dest="duration",
                   metavar="DURATION")
+parser.add_option("--encoding", dest="encoding",
+                  metavar="ENCODING", default="utf-8")
 
 (options, args) = parser.parse_args()
 
@@ -34,10 +36,12 @@ class TestReport:
         self.path = path
         self.test_suites = {}
 
-        if path and not os.path.isfile(path):
-            print "Creating file %s" % (path)
+        if not path:
+            raise Exception("No report file")
+        if not os.path.isfile(path):
+            print("Creating file %s" % (path))
         else:
-            print "Updating file %s" % (path)
+            print("Updating file %s" % (path))
             self._parse()
 
     def _parse(self):
@@ -50,8 +54,8 @@ class TestReport:
         if not path:
             path = self.path
 
-        fd = io.open(path, 'w', encoding='utf8')
-        TestSuite.to_file(fd, self.test_suites.values(), encoding='utf-8')
+        fd = io.open(path, 'w', encoding=options.encoding)
+        TestSuite.to_file(fd, self.test_suites.values(), encoding=options.encoding)
 
     def test_suite(self, name):
         if name in self.test_suites:
@@ -142,16 +146,16 @@ if options.testsuite:
                     tc.failure_output = "failed"
 
         if options.stdout:
-            with open(options.stdout, 'r') as f:
-                tc.stdout = f.read() 
+            with io.open(options.stdout, 'r', encoding=options.encoding, errors='ignore') as f:
+                tc.stdout = f.read().encode(options.encoding)
 
         if options.stderr:
-            with open(options.stderr, 'r') as f:
-                tc.stderr = f.read() 
-        
+            with io.open(options.stderr, 'r', encoding=options.encoding, errors='ignore') as f:
+                tc.stderr = f.read().encode(options.encoding)
+
         if options.duration:
             tc.elapsed_sec = num(options.duration)
-            
+
         ts.test_cases.append(tc)
 
 # Save
@@ -159,3 +163,4 @@ output = options.output
 if not output:
     output = options.file
 report.save(output)
+
