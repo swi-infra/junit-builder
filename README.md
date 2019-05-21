@@ -1,7 +1,7 @@
 junit-builder
 =============
 
-![Travis](https://img.shields.io/travis/CoRfr/junit-builder.svg)
+![Travis](https://img.shields.io/travis/swi-infra/junit-builder.svg)
 
 A simple python script to build JUnit test reports through command line.
 
@@ -9,7 +9,7 @@ Install
 -------
 
 ```bash
-pip install -r requirements.txt
+pip3 install -r requirements.txt
 sudo cp junit_builder /usr/local/bin
 ```
 
